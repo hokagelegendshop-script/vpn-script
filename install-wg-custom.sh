@@ -55,6 +55,19 @@ echo "7. Menyalakan WireGuard secara permanen..."
 systemctl enable wg-quick@wg0
 systemctl restart wg-quick@wg0
 
+echo "8. Memasang Auto-Check Expired & Kuota (Crontab)..."
+# Memastikan folder script ada dan file cron diberi izin eksekusi
+mkdir -p /usr/bin/vpn-script/script/
+chmod +x /usr/bin/vpn-script/script/wg-cron.sh 2>/dev/null
+
+# Filter cron lama agar tidak ada jadwal ganda saat install ulang
+crontab -l 2>/dev/null | grep -v "wg-cron.sh" > /tmp/cron_wg
+
+# Tambahkan eksekusi otomatis setiap 1 jam sekali agar limit Megabytes lebih akurat
+echo "0 * * * * /bin/bash /usr/bin/vpn-script/script/wg-cron.sh > /dev/null 2>&1" >> /tmp/cron_wg
+crontab /tmp/cron_wg
+rm -f /tmp/cron_wg
+
 echo ""
 echo "====================================================="
 echo "      BERHASIL! COPY PROFIL INI KE WINDOWS ANDA      "
