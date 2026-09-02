@@ -54,8 +54,8 @@ cat <<EOF > /etc/wireguard/wg0.conf
 Address = 10.66.66.1/24
 ListenPort = 51820
 PrivateKey = $SERVER_PRIV
-PostUp = iptables -t raw -I PREROUTING 1 -p udp --dport 51820 -j ACCEPT; iptables -I INPUT 1 -p udp --dport 51820 -j ACCEPT; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o $NIC -j MASQUERADE
-PostDown = iptables -t raw -D PREROUTING -p udp --dport 51820 -j ACCEPT; iptables -D INPUT -p udp --dport 51820 -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $NIC -j MASQUERADE
+PostUp = iptables -t raw -I PREROUTING 1 -p udp --dport 51820 -j ACCEPT; iptables -I INPUT 1 -p udp --dport 51820 -j ACCEPT; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o $NIC -j MASQUERADE; iptables -t nat -I PREROUTING 1 -d $PUB_IP -p udp --dport 51820 -j REDIRECT --to-ports 51820
+PostDown = iptables -t raw -D PREROUTING -p udp --dport 51820 -j ACCEPT; iptables -D INPUT -p udp --dport 51820 -j ACCEPT; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $NIC -j MASQUERADE; iptables -t nat -D PREROUTING -d $PUB_IP -p udp --dport 51820 -j REDIRECT --to-ports 51820
 
 [Peer]
 PublicKey = $CLIENT_PUB
@@ -139,7 +139,89 @@ def run_bash_script(command):
     except subprocess.CalledProcessError as e:
         return False, e.stderr
 EOF
+# Membuat core/wg_manager.py (Logika Final Anti-Error)
+cat << 'EOF' > /usr/bin/vpn-script/bot-telegram/core/wg_manager.py
+import os
+import subprocess
 
+def create_wg_account(username, exp_days=30, limit_ip=0, limit_quota=0):
+    username = username.strip().replace(" ", "_")
+    check_cmd = f"grep -qw '^### Client {username}' /etc/wireguard/wg0.conf"
+    if subprocess.run(check_cmd, shell=True).returncode == 0:
+        return False, f"❌ Gagal! Username '{username}' sudah terdaftar.", None
+
+    bash_script = f"""#!/bin/bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+SERVER_PUB_IP=\$(wget -qO- ipv4.icanhazip.com || curl -s ifconfig.me)
+SERVER_PUB_KEY=\$(cat /etc/wireguard/server_public_key)
+
+LAST_IP=\$(grep -oP 'AllowedIPs = 10\\.66\\.66\\.\\K[0-9]+' /etc/wireguard/wg0.conf | sort -n | tail -1)
+if [ -z "\$LAST_IP" ]; then
+    CLIENT_IP="10.66.66.3"
+else
+    CLIENT_IP="10.66.66.\$((LAST_IP+1))"
+fi
+
+CLIENT_PRIV_KEY=\$(wg genkey)
+CLIENT_PUB_KEY=\$(echo "\$CLIENT_PRIV_KEY" | wg pubkey)
+exp_date=\$(date -d "+{exp_days} days" +"%Y-%m-%d")
+
+cat <<INNER_EOF >> /etc/wireguard/wg0.conf
+### Client {username} \$exp_date {limit_ip} {limit_quota}
+[Peer]
+PublicKey = \$CLIENT_PUB_KEY
+AllowedIPs = \$CLIENT_IP/32
+INNER_EOF
+
+wg set wg0 peer "\$CLIENT_PUB_KEY" allowed-ips "\$CLIENT_IP/32"
+
+mkdir -p /usr/bin/vpn-script/dashboard-user/config-wg
+CLIENT_CONF="/usr/bin/vpn-script/dashboard-user/config-wg/{username}.conf"
+
+cat <<INNER_EOF > "\$CLIENT_CONF"
+[Interface]
+PrivateKey = \$CLIENT_PRIV_KEY
+Address = \$CLIENT_IP/24
+DNS = 8.8.8.8, 8.8.4.4
+MTU = 1280
+
+[Peer]
+PublicKey = \$SERVER_PUB_KEY
+Endpoint = \$SERVER_PUB_IP:51820
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25
+INNER_EOF
+
+echo "\$CLIENT_IP|\$exp_date|\$CLIENT_CONF"
+"""
+    script_path = f"/tmp/wg_build_{username}.sh"
+    with open(script_path, "w") as f:
+        f.write(bash_script)
+    os.chmod(script_path, 0o755)
+    
+    try:
+        result = subprocess.check_output(['/bin/bash', script_path], text=True).strip()
+        if os.path.exists(script_path): os.remove(script_path)
+        if "|" not in result: return False, "❌ Gagal mengonfigurasi WireGuard.", None
+        client_ip, exp_date, conf_path = result.split("|")
+        
+        formatted_quota = "Unlimited" if limit_quota == 0 else f"{limit_quota:,} MB"
+        success_msg = (
+            f"✅ *AKUN WIREGUARD BERHASIL DIBUAT* ✅\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"👤 *Username* : `{username}`\n"
+            f"🌐 *IP Client* : `{client_ip}`\n"
+            f"⏳ *Expired*  : `{exp_date}` ({exp_days} Hari)\n"
+            f"📊 *Limit Kuota* : `{formatted_quota}`\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"👇 _File konfigurasi siap di-import:_"
+        )
+        return True, success_msg, conf_path
+    except Exception as e:
+        if os.path.exists(script_path): os.remove(script_path)
+        return False, f"❌ Terjadi kesalahan: {e}", None
+EOF
 # Membuat bot.py (Versi Final dengan Logika Menu & Role Lengkap)
 cat << 'EOF' > /usr/bin/vpn-script/bot-telegram/bot.py
 import telebot
