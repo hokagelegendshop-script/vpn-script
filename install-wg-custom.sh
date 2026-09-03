@@ -273,7 +273,11 @@ EOF
 systemctl daemon-reload
 systemctl enable hokage-bot
 systemctl restart hokage-bot
-
+# --- GARANSI AUTO-START SETELAH REBOOT ---
+systemctl enable xl2tpd 2>/dev/null
+systemctl enable ipsec 2>/dev/null
+systemctl enable netfilter-persistent 2>/dev/null
+# -----------------------------------------
 clear
 echo "====================================================="
 echo "    INSTALASI SELESAI & BOT TELEGRAM TELAH AKTIF     "
