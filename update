@@ -1,1 +1,29 @@
 
+#!/bin/bash
+clear
+echo -e "\e[36mMengunduh pembaruan terbaru (script.zip)...\e[0m"
+apt-get install unzip -y >/dev/null 2>&1
+
+cd /tmp
+rm -rf script script.zip
+wget -qO script.zip "https://github.com/hokagelegendshop-script/vpn-script/raw/main/script.zip"
+
+if unzip -q -o script.zip; then
+    echo -e "\e[36mMenerapkan pembaruan ke sistem...\e[0m"
+    cp -rf script/* /usr/bin/vpn-script/script/
+    chmod +x /usr/bin/vpn-script/script/*.sh
+    
+    # Update master menu vpn
+    if [ -f /usr/bin/vpn-script/script/menu.sh ]; then
+        cp -f /usr/bin/vpn-script/script/menu.sh /usr/bin/vpn
+        chmod +x /usr/bin/vpn
+    fi
+    
+    rm -rf script script.zip
+    echo -e "\e[32mUpdate Berhasil! Sistem Anda sudah berada di versi terbaru.\e[0m"
+else
+    echo -e "\e[31mUpdate Gagal! Tidak dapat mengekstrak file zip.\e[0m"
+fi
+
+sleep 3
+vpn
