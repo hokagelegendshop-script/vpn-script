@@ -1,4 +1,3 @@
-
 #!/bin/bash
 clear
 echo -e "\e[36mMengunduh pembaruan terbaru (script.zip)...\e[0m"
@@ -19,8 +18,23 @@ if unzip -q -o script.zip; then
         chmod +x /usr/bin/vpn
     fi
     
+    # Memperbarui dan Menanamkan Ulang Sistem Auto-Check (Cronjob)
+    echo -e "\e[36mMemperbarui jadwal otomatisasi (Cronjob)...\e[0m"
+    cat << 'EOF' > /etc/cron.d/hokage-vpn
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Memantau dan menghapus user expired setiap pukul 00:10
+10 0 * * * root /usr/bin/vpn-script/script/expired-checker.sh > /dev/null 2>&1
+
+# Memantau limit Kuota dan Multi-Login IP setiap 10 menit
+*/10 * * * * root /usr/bin/vpn-script/script/limit-checker.sh > /dev/null 2>&1
+EOF
+    # Me-restart layanan cron agar jadwal baru terbaca
+    systemctl restart cron
+    
     rm -rf script script.zip
-    echo -e "\e[32mUpdate Berhasil! Sistem Anda sudah berada di versi terbaru.\e[0m"
+    echo -e "\e[32mUpdate Berhasil! Sistem & Cronjob Anda sudah berada di versi terbaru.\e[0m"
 else
     echo -e "\e[31mUpdate Gagal! Tidak dapat mengekstrak file zip.\e[0m"
 fi
