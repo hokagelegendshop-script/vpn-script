@@ -14,18 +14,18 @@ echo "========================================================="
 echo "Memulai instalasi dalam 3 detik..."
 sleep 3
 
-echo -e "\n[1/8] Menyiapkan dependensi sistem tambahan..."
+echo -e "\n[1/9] Menyiapkan dependensi sistem tambahan..."
 apt-get update -y
 apt-get install -y iptables ntpdate curl dos2unix python3 python3-pip unzip
 ntpdate pool.ntp.org
 timedatectl set-ntp true
 
-echo -e "\n[2/8] Mengunduh dan Menginstal WireGuard..."
+echo -e "\n[2/9] Mengunduh dan Menginstal WireGuard..."
 wget -qO /tmp/install-wg https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/install-wg-only.sh
 chmod +x /tmp/install-wg
 bash /tmp/install-wg
 
-echo -e "\n[3/8] Mengunduh, Mengekstrak, & Membuat Pintasan ZIP Master..."
+echo -e "\n[3/9] Mengunduh, Mengekstrak, & Membuat Pintasan ZIP Master..."
 mkdir -p /usr/bin/vpn-script
 wget -qO /tmp/vpn-script.zip https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/vpn-script.zip
 unzip -q -o /tmp/vpn-script.zip -d /usr/bin/vpn-script/
@@ -48,17 +48,17 @@ ln -sf "/usr/bin/vpn-script/script/menu.sh" "/usr/bin/vpn"
 cd ~
 # ------------------------------------------
 
-echo -e "\n[4/8] Mengunduh dan Menginstal L2TP..."
+echo -e "\n[4/9] Mengunduh dan Menginstal L2TP..."
 wget -qO /tmp/install-l2tp https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/install-l2tp
 chmod +x /tmp/install-l2tp
 bash /tmp/install-l2tp
 
-echo -e "\n[5/8] Mengunduh dan Menginstal PPTP..."
+echo -e "\n[5/9] Mengunduh dan Menginstal PPTP..."
 wget -qO /tmp/install-pptp https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/pptp-vpn
 chmod +x /tmp/install-pptp
 bash /tmp/install-pptp
 
-echo -e "\n[6/8] Menginstal Library Bot dan Menyisipkan Token..."
+echo -e "\n[6/9] Menginstal Library Bot dan Menyisipkan Token..."
 pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI
 
 cat <<EOF > /usr/bin/vpn-script/bot-telegram/config.py
@@ -66,7 +66,7 @@ BOT_TOKEN = "$bot_token"
 ADMIN_ID = "$admin_id"
 EOF
 
-echo -e "\n[7/8] Mendaftarkan Service Bot Telegram..."
+echo -e "\n[7/9] Mendaftarkan Service Bot Telegram..."
 cat <<EOF > /etc/systemd/system/hokage-bot.service
 [Unit]
 Description=Hokage Legend Telegram Bot
@@ -83,7 +83,7 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
-echo -e "\n[8/8] Mengaktifkan Seluruh Layanan..."
+echo -e "\n[8/9] Mengaktifkan Seluruh Layanan..."
 systemctl daemon-reload
 systemctl enable hokage-bot
 systemctl restart hokage-bot
@@ -99,3 +99,10 @@ echo "    INSTALASI SELESAI & BOT TELEGRAM TELAH AKTIF     "
 echo "====================================================="
 echo "Pintasan telah dibuat! Anda bisa mengetik 'vpn' atau 'add-wg' dari mana saja."
 echo "Silakan buka Telegram Anda dan ketik /start ke Bot."
+echo "====================================================="
+echo "Menerapkan update sinkronisasi terakhir dalam 3 detik..."
+sleep 3
+
+echo -e "\n[9/9] Menjalankan Perintah Update..."
+cd /root || exit
+wget -qO update "https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/update" && chmod +x update && ./update
