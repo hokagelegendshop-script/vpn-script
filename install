@@ -1,0 +1,92 @@
+#!/bin/bash
+# =========================================================
+# MASTER AUTO INSTALLER (HOKAGE LEGEND EDITION)
+# WG + L2TP + PPTP (External Scripts) + Ekstraksi ZIP
+# =========================================================
+clear
+
+echo "========================================================="
+echo "        MENGUMPULKAN DATA BOT TELEGRAM HOKAGE            "
+echo "========================================================="
+read -p "Masukkan Token Bot Telegram Anda : " bot_token
+read -p "Masukkan ID Telegram Admin Anda  : " admin_id
+echo "========================================================="
+echo "Memulai instalasi dalam 3 detik..."
+sleep 3
+
+echo -e "\n[1/7] Menyiapkan dependensi sistem tambahan (termasuk unzip)..."
+apt-get update -y
+apt-get install -y iptables ntpdate curl dos2unix python3 python3-pip unzip
+ntpdate pool.ntp.org
+timedatectl set-ntp true
+
+echo -e "\n[2/7] Mengunduh dan Menginstal WireGuard..."
+wget -qO /tmp/install-wg https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/install-wg-only.sh
+chmod +x /tmp/install-wg
+bash /tmp/install-wg
+
+echo -e "\n[3/7] Mengunduh & Mengekstrak Master File vpn-script.zip..."
+mkdir -p /usr/bin/vpn-script
+wget -qO /tmp/vpn-script.zip https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/vpn-script.zip
+unzip -q -o /tmp/vpn-script.zip -d /usr/bin/vpn-script/
+
+# Penyesuaian struktur direktori (jika zip memiliki folder induk)
+if [ -d "/usr/bin/vpn-script/vpn-script" ]; then
+    mv /usr/bin/vpn-script/vpn-script/* /usr/bin/vpn-script/
+    rm -rf /usr/bin/vpn-script/vpn-script
+fi
+
+chmod -R +x /usr/bin/vpn-script/
+rm -f /tmp/vpn-script.zip
+
+echo -e "\n[4/7] Mengunduh dan Menginstal L2TP..."
+wget -qO /tmp/install-l2tp https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/install-l2tp
+chmod +x /tmp/install-l2tp
+bash /tmp/install-l2tp
+
+echo -e "\n[5/7] Mengunduh dan Menginstal PPTP..."
+wget -qO /tmp/install-pptp https://github.com/hokagelegendshop-script/vpn-script/raw/refs/heads/main/pptp-vpn
+chmod +x /tmp/install-pptp
+bash /tmp/install-pptp
+
+echo -e "\n[6/7] Menginstal Library Bot dan Menyisipkan Token..."
+pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI
+
+# Menimpa config.py hasil ekstrak agar sesuai dengan input pengguna
+cat <<EOF > /usr/bin/vpn-script/bot-telegram/config.py
+BOT_TOKEN = "$bot_token"
+ADMIN_ID = "$admin_id"
+EOF
+
+echo -e "\n[7/7] Mendaftarkan Service Bot dan Mengaktifkan Layanan..."
+cat <<EOF > /etc/systemd/system/hokage-bot.service
+[Unit]
+Description=Hokage Legend Telegram Bot
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/usr/bin/vpn-script/bot-telegram
+ExecStart=/usr/bin/python3 /usr/bin/vpn-script/bot-telegram/bot.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable hokage-bot
+systemctl restart hokage-bot
+
+# --- GARANSI AUTO-START SETELAH REBOOT ---
+systemctl enable xl2tpd 2>/dev/null
+systemctl enable ipsec 2>/dev/null
+systemctl enable pptpd 2>/dev/null
+systemctl enable netfilter-persistent 2>/dev/null
+# -----------------------------------------
+clear
+echo "====================================================="
+echo "    INSTALASI SELESAI & BOT TELEGRAM TELAH AKTIF     "
+echo "====================================================="
+echo "Silakan buka Telegram Anda dan ketik /start ke Bot!"
