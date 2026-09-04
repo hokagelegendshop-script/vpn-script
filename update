@@ -5,6 +5,7 @@ apt-get install unzip -y >/dev/null 2>&1
 
 cd /tmp || exit
 rm -rf script script.zip update
+
 # Mengunduh file zip script dan file update terpisah dari root repository
 wget -qO script.zip "https://github.com/hokagelegendshop-script/vpn-script/raw/main/script.zip"
 wget -qO update "https://github.com/hokagelegendshop-script/vpn-script/raw/main/update"
@@ -17,6 +18,11 @@ if unzip -q -o script.zip; then
     echo -e "\e[36mMemperbarui pintasan layanan di /usr/bin...\e[0m"
     cd /usr/bin/vpn-script/script/ || exit
     for file in *.sh; do
+        # Pengecualian agar tidak menimpa /usr/bin/menu milik Xray SSHWS
+        if [[ "$file" == "menu.sh" ]]; then
+            continue
+        fi
+        
         cmd_name="${file%.sh}"
         rm -f "/usr/bin/$cmd_name"
         ln -sf "/usr/bin/vpn-script/script/$file" "/usr/bin/$cmd_name"
