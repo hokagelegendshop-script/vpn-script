@@ -12,11 +12,22 @@ if unzip -q -o script.zip; then
     cp -rf script/* /usr/bin/vpn-script/script/
     chmod +x /usr/bin/vpn-script/script/*.sh
     
-    # Update master menu vpn
-    if [ -f /usr/bin/vpn-script/script/menu.sh ]; then
-        cp -f /usr/bin/vpn-script/script/menu.sh /usr/bin/vpn
-        chmod +x /usr/bin/vpn
-    fi
+    echo -e "\e[36mMemperbarui pintasan di /usr/bin...\e[0m"
+    cd /usr/bin/vpn-script/script/ || exit
+    for file in *.sh; do
+        cmd_name="${file%.sh}"
+        # Menghapus pintasan lama jika ada di /usr/bin
+        rm -f "/usr/bin/$cmd_name"
+        # Membuat pintasan baru menggunakan symlink
+        ln -sf "/usr/bin/vpn-script/script/$file" "/usr/bin/$cmd_name"
+    done
+    
+    # Update pintasan khusus master menu vpn
+    rm -f /usr/bin/vpn
+    ln -sf "/usr/bin/vpn-script/script/menu.sh" "/usr/bin/vpn"
+    
+    # Kembali ke /tmp untuk melanjutkan pembersihan
+    cd /tmp || exit
     
     # Memperbarui dan Menanamkan Ulang Sistem Auto-Check (Cronjob)
     echo -e "\e[36mMemperbarui jadwal otomatisasi (Cronjob)...\e[0m"
@@ -34,7 +45,7 @@ EOF
     systemctl restart cron
     
     rm -rf script script.zip
-    echo -e "\e[32mUpdate Berhasil! Sistem & Cronjob Anda sudah berada di versi terbaru.\e[0m"
+    echo -e "\e[32mUpdate Berhasil! Sistem, Pintasan, & Cronjob Anda sudah berada di versi terbaru.\e[0m"
 else
     echo -e "\e[31mUpdate Gagal! Tidak dapat mengekstrak file zip.\e[0m"
 fi
