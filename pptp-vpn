@@ -56,20 +56,31 @@ fi
 
 clear
 
-# Adding VPN Users
-echo "Set username:"
-read username
-echo "Set Password:"
-read password
-sudo echo "$username * $password *" >> /etc/ppp/chap-secrets
+Forwarding
+# 1. Memperbaiki Jalur Internet PPTP / L2TP (Forwarding & NAT)
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 sysctl -w net.ipv4.ip_forward=1
 sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
 iptables -t nat -I POSTROUTING -o $NIC -j MASQUERADE
+iptables -I FORWARD -i ppp+ -j ACCEPT
+iptables -I FORWARD -o ppp+ -j ACCEPT
 iptables -I FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-netfilter-persistent save
-systemctl restart pptpd
-# Restarting Service 
-sudo service pptpd restart
+netfilter-persistent save 2>/dev/null
 
+# 2. Memasang Sistem Tracker Status Online (100% Akurat)
+cat << 'EOF' > /etc/ppp/ip-up.d/online-tracker
+#!/bin/bash
+# Menyimpan nama user ke file temporary saat terkoneksi
+echo "$PEERNAME" > /var/run/ppp-${IFNAME}.user
+EOF
+chmod +x /etc/ppp/ip-up.d/online-tracker
+
+cat << 'EOF' > /etc/ppp/ip-down.d/online-tracker
+#!/bin/bash
+# Menghapus file temporary saat user terputus
+rm -f /var/run/ppp-${IFNAME}.user
+EOF
+chmod +x /etc/ppp/ip-down.d/online-tracker
+
+systemctl restart pptpd
 echo "All done!"
