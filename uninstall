@@ -1,0 +1,68 @@
+#!/bin/bash
+# =========================================================
+# UNINSTALLER HOKAGE LEGEND VPN
+# Menghapus WireGuard, L2TP, PPTP, Bot Telegram & File Sistem
+# =========================================================
+clear
+
+C_RED='\033[0;31m'
+C_GREEN='\033[0;32m'
+C_YELLOW='\033[1;33m'
+C_CYAN='\033[0;36m'
+C_NC='\033[0m'
+
+echo -e "${C_RED}=========================================================${C_NC}"
+echo -e "${C_YELLOW}           PERINGATAN: UNINSTALLER HOKAGE VPN            ${C_NC}"
+echo -e "${C_RED}=========================================================${C_NC}"
+echo -e "Aksi ini akan MENGHAPUS SELURUH data klien, bot, dan"
+echo -e "konfigurasi VPN (WG, L2TP, PPTP) dari VPS ini."
+echo ""
+read -p "Apakah Anda yakin ingin melanjutkan? (y/n): " confirm
+if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo -e "${C_GREEN}Proses uninstal dibatalkan.${C_NC}"
+    exit 1
+fi
+
+echo -e "\n${C_CYAN}[1/6] Menghentikan dan Menonaktifkan Service VPN & Bot...${C_NC}"
+systemctl stop wg-quick@wg0 xl2tpd ipsec pptpd hokage-bot 2>/dev/null
+systemctl disable wg-quick@wg0 xl2tpd ipsec pptpd hokage-bot 2>/dev/null
+
+echo -e "\n${C_CYAN}[2/6] Menghapus Pintasan (Symlinks) dari /usr/bin...${C_NC}"
+if [ -d "/usr/bin/vpn-script/script" ]; then
+    for file in /usr/bin/vpn-script/script/*.sh; do
+        cmd_name=$(basename "${file%.sh}")
+        rm -f "/usr/bin/$cmd_name"
+    done
+fi
+rm -f /usr/bin/vpn
+rm -f /usr/bin/update
+
+echo -e "\n${C_CYAN}[3/6] Menghapus File Inti, Script, & Database (Hokage Legend)...${C_NC}"
+rm -rf /usr/bin/vpn-script
+rm -rf /etc/wireguard
+rm -rf /etc/xl2tpd
+rm -rf /etc/ipsec.* /etc/strongswan.d
+rm -f /etc/pptpd.conf /etc/ppp/pptpd-options /etc/ppp/chap-secrets
+rm -f /etc/vps-expired /etc/vps-client
+
+echo -e "\n${C_CYAN}[4/6] Menghapus Konfigurasi Kernel, Service Systemd, & Cronjob...${C_NC}"
+rm -f /etc/systemd/system/hokage-bot.service
+rm -f /etc/sysctl.d/99-wireguard.conf
+rm -f /etc/cron.d/hokage-vpn
+systemctl daemon-reload
+systemctl restart cron 2>/dev/null
+
+echo -e "\n${C_CYAN}[5/6] Menghapus Paket Aplikasi (WireGuard, L2TP, PPTP)...${C_NC}"
+apt-get remove --purge -y wireguard wireguard-tools pptpd xl2tpd strongswan strongswan-pki libcharon-extra-plugins 2>/dev/null
+apt-get autoremove -y 2>/dev/null
+
+echo -e "\n${C_CYAN}[6/6] Menerapkan Ulang Aturan Sistem...${C_NC}"
+sysctl --system >/dev/null 2>&1
+
+clear
+echo -e "${C_GREEN}=====================================================${C_NC}"
+echo -e "${C_GREEN}       UNINSTALASI BERHASIL DISelesaikan!            ${C_NC}"
+echo -e "${C_GREEN}=====================================================${C_NC}"
+echo -e "Seluruh komponen VPN Hokage Legend telah dihapus."
+echo -e "${C_YELLOW}Catatan: Disarankan untuk me-reboot VPS Anda (ketik: reboot)${C_NC}"
+echo -e "${C_YELLOW}agar sisa iptables/routing jaringan kembali bersih (default).${C_NC}"
