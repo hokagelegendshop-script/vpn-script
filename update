@@ -1,35 +1,40 @@
 #!/bin/bash
 clear
-echo -e "\e[36mMengunduh pembaruan terbaru (script.zip)...\e[0m"
+echo -e "\e[36mMengunduh pembaruan terbaru...\e[0m"
 apt-get install unzip -y >/dev/null 2>&1
 
-cd /tmp
-rm -rf script script.zip
+cd /tmp || exit
+rm -rf script script.zip update
+# Mengunduh file zip script dan file update terpisah dari root repository
 wget -qO script.zip "https://github.com/hokagelegendshop-script/vpn-script/raw/main/script.zip"
+wget -qO update "https://github.com/hokagelegendshop-script/vpn-script/raw/main/update"
 
 if unzip -q -o script.zip; then
     echo -e "\e[36mMenerapkan pembaruan ke sistem...\e[0m"
     cp -rf script/* /usr/bin/vpn-script/script/
     chmod +x /usr/bin/vpn-script/script/*.sh
     
-    echo -e "\e[36mMemperbarui pintasan di /usr/bin...\e[0m"
+    echo -e "\e[36mMemperbarui pintasan layanan di /usr/bin...\e[0m"
     cd /usr/bin/vpn-script/script/ || exit
     for file in *.sh; do
         cmd_name="${file%.sh}"
-        # Menghapus pintasan lama jika ada di /usr/bin
         rm -f "/usr/bin/$cmd_name"
-        # Membuat pintasan baru menggunakan symlink
         ln -sf "/usr/bin/vpn-script/script/$file" "/usr/bin/$cmd_name"
     done
     
-    # Update pintasan khusus master menu vpn
+    # Memperbarui pintasan khusus master menu vpn
     rm -f /usr/bin/vpn
     ln -sf "/usr/bin/vpn-script/script/menu.sh" "/usr/bin/vpn"
     
-    # Kembali ke /tmp untuk melanjutkan pembersihan
+    # Memasang dan membuat pintasan khusus untuk perintah 'update'
     cd /tmp || exit
+    if [ -f "update" ]; then
+        cp -f update /usr/bin/vpn-script/update
+        chmod +x /usr/bin/vpn-script/update
+        rm -f /usr/bin/update
+        ln -sf "/usr/bin/vpn-script/update" "/usr/bin/update"
+    fi
     
-    # Memperbarui dan Menanamkan Ulang Sistem Auto-Check (Cronjob)
     echo -e "\e[36mMemperbarui jadwal otomatisasi (Cronjob)...\e[0m"
     cat << 'EOF' > /etc/cron.d/hokage-vpn
 SHELL=/bin/bash
@@ -41,10 +46,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 # Memantau limit Kuota dan Multi-Login IP setiap 10 menit
 */10 * * * * root /usr/bin/vpn-script/script/limit-checker.sh > /dev/null 2>&1
 EOF
-    # Me-restart layanan cron agar jadwal baru terbaca
-    systemctl restart cron
     
-    rm -rf script script.zip
+    systemctl restart cron
+    rm -rf script script.zip update
     echo -e "\e[32mUpdate Berhasil! Sistem, Pintasan, & Cronjob Anda sudah berada di versi terbaru.\e[0m"
 else
     echo -e "\e[31mUpdate Gagal! Tidak dapat mengekstrak file zip.\e[0m"
